@@ -48,6 +48,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const navLinks = [
     { name: 'Home', id: 'home', isPage: true },
     { name: 'Find Jobs', id: 'jobs', isPage: true },
+    { name: 'Dashboard', id: 'candidate-dashboard', isPage: true },
     { name: 'About', id: 'about', isPage: true },
     { name: 'Recruiters', id: 'recruiters', isPage: true },
     { name: 'Candidates', id: 'candidates', isPage: true },
@@ -508,7 +509,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           }
         }
 
-        @media (max-width: 900px) {
+        @media (max-width: 1080px) {
           .desktop-nav, .desktop-actions {
             display: none !important;
           }
