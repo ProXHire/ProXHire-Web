@@ -96,8 +96,9 @@ export function App() {
   }
 
   const handleOpenCandidateModal = () => {
-    handlePageChange('join-candidate')
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    const isDev = typeof window !== 'undefined' && window.location.hostname.includes('localhost')
+    const candidateUrl = isDev ? 'http://localhost:5177' : 'https://candidate.proxhire.in'
+    window.open(candidateUrl, '_blank')
   }
 
   const handleOpenRecruiterModal = () => {
