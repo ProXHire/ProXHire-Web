@@ -101,8 +101,9 @@ export function App() {
   }
 
   const handleOpenRecruiterModal = () => {
-    handlePageChange('register-recruiter')
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    const isDev = typeof window !== 'undefined' && window.location.hostname.includes('localhost')
+    const employerUrl = isDev ? 'http://localhost:5175' : 'https://employer.proxhire.in'
+    window.open(employerUrl, '_blank')
   }
 
   const handleOpenAuth = (role: UserRole = 'candidate') => {
