@@ -1,5 +1,5 @@
 import React from 'react'
-import { Phone, Mail } from 'lucide-react'
+import { Mail } from 'lucide-react'
 
 export const NeedSupport: React.FC = () => {
   return (
@@ -15,18 +15,6 @@ export const NeedSupport: React.FC = () => {
             </p>
           </div>
 
-          {/* Center: Phone */}
-          <div className="support-col-item">
-            <div className="support-icon-wrap">
-              <Phone size={20} color="#0c0d0e" />
-            </div>
-            <div className="support-item-info">
-              <a href="tel:9100729332" className="support-contact-link">
-                9100729332
-              </a>
-              <span className="support-item-sub">8 AM – 9 PM</span>
-            </div>
-          </div>
 
           {/* Right: Email */}
           <div className="support-col-item">

@@ -1,27 +1,11 @@
 import React from 'react'
-import { Phone, Mail, MessageCircle, Share2 } from 'lucide-react'
+import { Mail, MessageCircle, Share2 } from 'lucide-react'
 
 export const ContactChannels: React.FC = () => {
   return (
     <section className="contact-channels-section">
       <div className="container">
         <div className="channels-grid">
-          {/* 1. Call Us */}
-          <div className="channel-card">
-            <div className="channel-icon-circle">
-              <Phone size={22} color="#ffffff" />
-            </div>
-            <div className="channel-content">
-              <span className="channel-label">Call Us</span>
-              <a href="tel:9100729332" className="channel-main-link">
-                9100729332
-              </a>
-              <div className="channel-subtext">
-                <span>Mon – Sun</span>
-                <span>8:00 AM – 9:00 PM</span>
-              </div>
-            </div>
-          </div>
 
           {/* 2. Email Us */}
           <div className="channel-card">
@@ -52,7 +36,7 @@ export const ContactChannels: React.FC = () => {
                 rel="noreferrer"
                 className="channel-main-link"
               >
-                9100729332
+                WhatsApp Support
               </a>
               <div className="channel-subtext">
                 <span>Mon – Sun</span>
@@ -108,7 +92,7 @@ export const ContactChannels: React.FC = () => {
 
         .channels-grid {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
+          grid-template-columns: repeat(3, 1fr);
           gap: 20px;
         }
 

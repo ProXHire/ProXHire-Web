@@ -1,7 +1,6 @@
 import React from 'react'
 import { Logo } from './Logo'
 import {
-  Phone,
   Mail,
   MapPin,
   ShieldCheck,
@@ -103,16 +102,8 @@ export const Footer: React.FC<FooterProps> = ({ variant = 'dark' }) => {
             <h4 className="footer-col-title" style={{ color: isDark ? '#ffffff' : '#0c0d0e' }}>Contact Us</h4>
             <div className="contact-items">
               <div className="contact-row">
-                <Phone size={16} className="contact-icon" color={isDark ? '#9ca3af' : '#0c0d0e'} />
-                <a href="tel:9100729332" style={{ color: isDark ? '#9ca3af' : '#64748b' }}>9100729332</a>
-              </div>
-              <div className="contact-row">
                 <Mail size={16} className="contact-icon" color={isDark ? '#9ca3af' : '#0c0d0e'} />
                 <a href="mailto:info@proxhire.in" style={{ color: isDark ? '#9ca3af' : '#64748b' }}>info@proxhire.in</a>
-              </div>
-              <div className="contact-row">
-                <Phone size={16} className="contact-icon" color={isDark ? '#9ca3af' : '#0c0d0e'} />
-                <a href="tel:9100729332" style={{ color: isDark ? '#9ca3af' : '#64748b' }}>9100729332</a>
               </div>
               <div className="contact-row" style={{ alignItems: 'flex-start' }}>
                 <MapPin size={18} className="contact-icon" color={isDark ? '#9ca3af' : '#0c0d0e'} style={{ marginTop: '3px' }} />

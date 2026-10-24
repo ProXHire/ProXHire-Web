@@ -145,7 +145,7 @@ export const FAQAccordionList: React.FC<FAQAccordionListProps> = ({
       category: 'support',
       question: 'What are the working hours of the ProxHire support desk?',
       answer:
-        'Our customer support team is available every day (Monday to Sunday) from 8:00 AM to 9:00 PM at 9100729332 or via email at info@proxhire.in.'
+        'Our customer support team is available every day (Monday to Sunday) from 8:00 AM to 9:00 PM via email at info@proxhire.in.'
     }
   ]
 

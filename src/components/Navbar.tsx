@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Logo } from './Logo'
-import { Menu, X, ArrowRight, Sparkles, ShieldCheck, MapPin, Phone, Mail, LogIn, LayoutDashboard } from 'lucide-react'
+import { Menu, X, ArrowRight, Sparkles, ShieldCheck, MapPin, Mail, LayoutDashboard } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 export type NavPage =
@@ -21,7 +21,7 @@ interface NavbarProps {
   onPageChange: (page: NavPage) => void
   onJoinCandidate: () => void
   onHireTalent: () => void
-  onOpenAuth: (role?: 'candidate' | 'recruiter') => void
+  onOpenAuth?: (role?: 'candidate' | 'recruiter') => void
   onNavigateSection?: (sectionId: string) => void
 }
 
@@ -30,7 +30,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onPageChange,
   onJoinCandidate,
   onHireTalent,
-  onOpenAuth,
   onNavigateSection
 }) => {
   const { user, userRole, logout } = useAuth()
@@ -47,8 +46,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const navLinks = [
     { name: 'Home', id: 'home', isPage: true },
-    { name: 'Find Jobs', id: 'jobs', isPage: true },
-    { name: 'Dashboard', id: 'candidate-dashboard', isPage: true },
     { name: 'About', id: 'about', isPage: true },
     { name: 'Recruiters', id: 'recruiters', isPage: true },
     { name: 'Candidates', id: 'candidates', isPage: true },
@@ -109,11 +106,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             <a href="mailto:info@proxhire.in" className="top-bar-link" aria-label="Email ProxHire Support">
               <Mail size={12} />
               <span>info@proxhire.in</span>
-            </a>
-            <span className="top-bar-sep">|</span>
-            <a href="tel:9100729332" className="top-bar-link" aria-label="Call ProxHire Support">
-              <Phone size={12} />
-              <span>9100729332</span>
             </a>
           </div>
         </div>
@@ -228,24 +220,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           ) : (
             <>
-              <button
-                type="button"
-                onClick={() => onOpenAuth('candidate')}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '13px',
-                  fontWeight: 700,
-                  color: '#09090b',
-                  cursor: 'pointer',
-                  padding: '8px 12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                <LogIn size={15} /> Sign In
-              </button>
               <button
                 type="button"
                 className={`btn ${isJoinCandidateActive ? 'btn-primary' : 'btn-outline'}`}

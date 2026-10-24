@@ -1,5 +1,5 @@
 import React from 'react'
-import { Phone, Mail, MessageCircle, MapPin, ArrowRight } from 'lucide-react'
+import { Mail, MessageCircle, MapPin, ArrowRight } from 'lucide-react'
 
 interface FAQSidebarProps {
   onContactClick: () => void
@@ -48,14 +48,6 @@ export const FAQSidebar: React.FC<FAQSidebarProps> = ({ onContactClick }) => {
 
         <div className="faq-info-list">
           <div className="faq-info-row">
-            <Phone size={18} className="faq-info-icon" />
-            <div className="faq-info-text">
-              <a href="tel:9100729332" className="faq-info-link">9100729332</a>
-              <span className="faq-info-sub">Mon – Sun 8:00 AM – 9:00 PM</span>
-            </div>
-          </div>
-
-          <div className="faq-info-row">
             <Mail size={18} className="faq-info-icon" />
             <div className="faq-info-text">
               <a href="mailto:info@proxhire.in" className="faq-info-link">info@proxhire.in</a>
@@ -66,7 +58,7 @@ export const FAQSidebar: React.FC<FAQSidebarProps> = ({ onContactClick }) => {
           <div className="faq-info-row">
             <MessageCircle size={18} className="faq-info-icon" />
             <div className="faq-info-text">
-              <a href="https://wa.me/919100729332" target="_blank" rel="noreferrer" className="faq-info-link">9100729332</a>
+              <a href="https://wa.me/919100729332" target="_blank" rel="noreferrer" className="faq-info-link">WhatsApp Support</a>
               <span className="faq-info-sub">Mon – Sun 8:00 AM – 9:00 PM</span>
             </div>
           </div>
