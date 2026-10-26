@@ -1232,6 +1232,79 @@ export const CandidateDashboard: React.FC<CandidateDashboardProps> = ({ onBrowse
                   <button
                     type="button"
                     onClick={() => {
+                      setActiveSidebarTab('dashboard')
+                      setProfileDropdownOpen(false)
+                      setTimeout(() => {
+                        const el = document.getElementById('recommended-jobs-section') || document.querySelector('[data-section="recommended"]')
+                        if (el) el.scrollIntoView({ behavior: 'smooth' })
+                      }, 50)
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      fontSize: '13px',
+                      color: '#0f172a',
+                      background: 'none',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      textAlign: 'left'
+                    }}
+                  >
+                    <Sparkles size={14} color="#6366f1" /> Recommended Jobs
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSidebarTab('saved')
+                      setProfileDropdownOpen(false)
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      fontSize: '13px',
+                      color: '#0f172a',
+                      background: 'none',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      textAlign: 'left'
+                    }}
+                  >
+                    <Bookmark size={14} /> Saved Jobs
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSidebarTab('applications')
+                      setProfileDropdownOpen(false)
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      fontSize: '13px',
+                      color: '#0f172a',
+                      background: 'none',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      textAlign: 'left'
+                    }}
+                  >
+                    <Briefcase size={14} /> Applied Jobs
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
                       setActiveSidebarTab('settings')
                       setProfileDropdownOpen(false)
                     }}
