@@ -15,9 +15,11 @@ import {
 } from './pages'
 import { AuthModal } from './components/auth/AuthModal'
 import { useScrollReveal } from './hooks/useScrollReveal'
+import { useAuth } from './context/AuthContext'
 import type { UserRole } from './types/user'
 
 export function App() {
+  const { user } = useAuth()
   // Support hash navigation and state
   const [currentPage, setCurrentPage] = useState<NavPage>(() => {
     if (typeof window !== 'undefined') {
@@ -206,10 +208,40 @@ export function App() {
           <RecruiterRegisterPage />
         )}
         {currentPage === 'candidate-dashboard' && (
-          <CandidateDashboard onBrowseJobs={() => handlePageChange('jobs')} />
+          user ? (
+            <CandidateDashboard onBrowseJobs={() => handlePageChange('jobs')} />
+          ) : (
+            <div style={{ textAlign: 'center', padding: '100px 20px', minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a', marginBottom: '10px' }}>Authentication Required</h2>
+              <p style={{ color: '#64748b', marginBottom: '24px', maxWidth: '420px' }}>Please sign in to access your Candidate Dashboard, view saved jobs, and track applications.</p>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => handleOpenAuth('candidate')}
+                style={{ padding: '12px 28px', borderRadius: '10px', fontWeight: 700, cursor: 'pointer', background: '#09090b', color: '#ffffff', border: 'none' }}
+              >
+                Sign In to Candidate Portal
+              </button>
+            </div>
+          )
         )}
         {currentPage === 'recruiter-dashboard' && (
-          <RecruiterDashboard />
+          user ? (
+            <RecruiterDashboard />
+          ) : (
+            <div style={{ textAlign: 'center', padding: '100px 20px', minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a', marginBottom: '10px' }}>Employer Authentication Required</h2>
+              <p style={{ color: '#64748b', marginBottom: '24px', maxWidth: '420px' }}>Please sign in with your official company credentials to access candidate profiles and job postings.</p>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => handleOpenAuth('recruiter')}
+                style={{ padding: '12px 28px', borderRadius: '10px', fontWeight: 700, cursor: 'pointer', background: '#09090b', color: '#ffffff', border: 'none' }}
+              >
+                Sign In as Employer
+              </button>
+            </div>
+          )
         )}
       </main>
 
