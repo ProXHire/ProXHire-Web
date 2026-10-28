@@ -30,7 +30,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const { loginWithEmail, registerWithEmail, sendPhoneOtp, verifyPhoneOtp } = useAuth()
 
   const [role, setRole] = useState<UserRole>(initialRole)
-  const [authMethod, setAuthMethod] = useState<'phone' | 'email'>('phone')
+  const [authMethod, setAuthMethod] = useState<'phone' | 'email'>('email')
   const [isRegister, setIsRegister] = useState(false)
 
   // Form states
@@ -308,52 +308,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         </div>
 
-        {/* Method Switcher: Phone vs Email */}
+        {/* Authentication Notice: Email & Password */}
         <div style={{ padding: '12px 24px 0', display: 'flex', gap: '16px', borderBottom: '1px solid #f4f4f5' }}>
-          <button
-            type="button"
-            onClick={() => {
-              setAuthMethod('phone')
-              setError(null)
-            }}
+          <div
             style={{
               padding: '8px 4px',
-              border: 'none',
-              background: 'none',
               fontSize: '13px',
-              fontWeight: authMethod === 'phone' ? 700 : 500,
-              color: authMethod === 'phone' ? '#09090b' : '#71717a',
-              borderBottom: authMethod === 'phone' ? '2px solid #09090b' : '2px solid transparent',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-          >
-            <Phone size={14} /> Phone OTP
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setAuthMethod('email')
-              setError(null)
-            }}
-            style={{
-              padding: '8px 4px',
-              border: 'none',
-              background: 'none',
-              fontSize: '13px',
-              fontWeight: authMethod === 'email' ? 700 : 500,
-              color: authMethod === 'email' ? '#09090b' : '#71717a',
-              borderBottom: authMethod === 'email' ? '2px solid #09090b' : '2px solid transparent',
-              cursor: 'pointer',
+              fontWeight: 700,
+              color: '#09090b',
+              borderBottom: '2px solid #09090b',
               display: 'flex',
               alignItems: 'center',
               gap: '6px'
             }}
           >
             <Mail size={14} /> Email & Password
-          </button>
+          </div>
         </div>
 
         {/* Form Body */}
