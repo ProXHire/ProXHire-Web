@@ -1,3 +1,21 @@
+export const DEFAULT_POPULAR_SKILLS: string[] = [
+  'React',
+  'Node.js',
+  'TypeScript',
+  'JavaScript',
+  'Python',
+  'Java',
+  'SQL',
+  'AWS',
+  'Docker',
+  'Git',
+  'Next.js',
+  'MongoDB',
+  'Tailwind CSS',
+  'GraphQL',
+  'Express'
+]
+
 export interface FormOptions {
   highestEducation: string[]
   preferredRole: string[]
@@ -5,10 +23,12 @@ export interface FormOptions {
   currentLocation: string[]
   industry: string[]
   companySize: string[]
+  popularSkills: string[]
   updatedAt?: any
 }
 
 export const DEFAULT_FORM_OPTIONS: FormOptions = {
+  popularSkills: DEFAULT_POPULAR_SKILLS,
   highestEducation: [
     'B.Tech / B.E.',
     'MCA / BCA / B.Sc (IT)',

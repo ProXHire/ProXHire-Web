@@ -17,6 +17,7 @@ function getInitialOptions(): FormOptions {
         currentLocation: Array.isArray(parsed.currentLocation) && parsed.currentLocation.length ? parsed.currentLocation : DEFAULT_FORM_OPTIONS.currentLocation,
         industry: Array.isArray(parsed.industry) && parsed.industry.length ? parsed.industry : DEFAULT_FORM_OPTIONS.industry,
         companySize: Array.isArray(parsed.companySize) && parsed.companySize.length ? parsed.companySize : DEFAULT_FORM_OPTIONS.companySize,
+        popularSkills: Array.isArray(parsed.popularSkills) && parsed.popularSkills.length ? parsed.popularSkills : DEFAULT_FORM_OPTIONS.popularSkills,
       }
     }
   } catch {
@@ -44,6 +45,7 @@ export function useFormOptions() {
               currentLocation: Array.isArray(data.currentLocation) && data.currentLocation.length ? data.currentLocation : DEFAULT_FORM_OPTIONS.currentLocation,
               industry: Array.isArray(data.industry) && data.industry.length ? data.industry : DEFAULT_FORM_OPTIONS.industry,
               companySize: Array.isArray(data.companySize) && data.companySize.length ? data.companySize : DEFAULT_FORM_OPTIONS.companySize,
+              popularSkills: Array.isArray(data.popularSkills) && data.popularSkills.length ? data.popularSkills : DEFAULT_FORM_OPTIONS.popularSkills,
             }
             setOptions(merged)
             try {
