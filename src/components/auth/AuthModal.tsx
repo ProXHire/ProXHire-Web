@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import {
   X,
-  Phone,
   Mail,
   ShieldCheck,
   CheckCircle2,
@@ -30,7 +29,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const { loginWithEmail, registerWithEmail, sendPhoneOtp, verifyPhoneOtp } = useAuth()
 
   const [role, setRole] = useState<UserRole>(initialRole)
-  const [authMethod, setAuthMethod] = useState<'phone' | 'email'>('email')
+  const [authMethod] = useState<'phone' | 'email'>('email')
   const [isRegister, setIsRegister] = useState(false)
 
   // Form states

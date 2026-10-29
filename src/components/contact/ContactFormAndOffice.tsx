@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { MapPin, Headphones, Clock, ArrowRight, CheckCircle2, ExternalLink } from 'lucide-react'
 import { db } from '../../firebase'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { submitContactMessageToSupabase } from '../../supabase'
 
 export const ContactFormAndOffice: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -22,7 +23,12 @@ export const ContactFormAndOffice: React.FC = () => {
     setSubmitError(null)
 
     try {
-      // 1. Write to Firestore candidates collection tagged with isContactMessage: true
+      // 1. Submit to Supabase Database
+      await submitContactMessageToSupabase(formData).catch((sbErr) => {
+        console.warn('Supabase contact submit notice:', sbErr.message)
+      })
+
+      // 2. Write to Firestore candidates collection tagged with isContactMessage: true
       await addDoc(collection(db, 'candidates'), {
         isContactMessage: true,
         name: formData.name.trim(),
