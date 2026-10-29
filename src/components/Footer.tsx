@@ -37,7 +37,7 @@ export const Footer: React.FC<FooterProps> = ({ variant = 'dark' }) => {
             </p>
             <div className="footer-socials">
               <a
-                href="https://linkedin.com"
+                href="https://www.linkedin.com/company/proxy-services-india-private-limited/about/?viewAsMember=true"
                 target="_blank"
                 rel="noreferrer"
                 className="social-circle"
@@ -53,7 +53,7 @@ export const Footer: React.FC<FooterProps> = ({ variant = 'dark' }) => {
                 </svg>
               </a>
               <a
-                href="https://instagram.com"
+                href="https://www.instagram.com/proxhire.in/"
                 target="_blank"
                 rel="noreferrer"
                 className="social-circle"

@@ -54,7 +54,7 @@ export const ContactChannels: React.FC = () => {
               <span className="channel-label">Follow Us</span>
               <div className="channel-social-links">
                 <a
-                  href="https://linkedin.com"
+                  href="https://www.linkedin.com/company/proxy-services-india-private-limited/about/?viewAsMember=true"
                   target="_blank"
                   rel="noreferrer"
                   className="channel-social-btn"
@@ -65,7 +65,7 @@ export const ContactChannels: React.FC = () => {
                   </svg>
                 </a>
                 <a
-                  href="https://instagram.com"
+                  href="https://www.instagram.com/proxhire.in/"
                   target="_blank"
                   rel="noreferrer"
                   className="channel-social-btn"
