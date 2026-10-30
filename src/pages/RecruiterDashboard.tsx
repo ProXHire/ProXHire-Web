@@ -9,8 +9,7 @@ import {
   X,
   Loader2
 } from 'lucide-react'
-import { collection, query, where, getDocs, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore'
-import { db } from '../firebase'
+import { supabase, toJobListing, toJobApplication } from '../supabase'
 import { useAuth } from '../context/AuthContext'
 import type { JobListing, JobApplication, ApplicationStage } from '../types/user'
 
@@ -48,21 +47,17 @@ export const RecruiterDashboard: React.FC = () => {
     setLoading(true)
     try {
       // 1. Fetch Jobs
-      const jobsQuery = query(collection(db, 'jobs'), where('recruiterId', '==', user.uid))
-      const jobsSnap = await getDocs(jobsQuery)
-      const fetchedJobs: JobListing[] = []
-      jobsSnap.forEach((d) => {
-        fetchedJobs.push({ id: d.id, ...d.data() } as JobListing)
-      })
-      setJobs(fetchedJobs)
+      const { data: jobRows, error: jobsError } = await supabase.from('jobs').select('*').eq('recruiter_id', user.uid)
+      if (jobsError) throw jobsError
+      setJobs((jobRows || []).map(toJobListing))
 
       // 2. Fetch Applicants
-      const appsQuery = query(collection(db, 'applications'), where('companyName', '==', recruiterProfile?.companyName || ''))
-      const appsSnap = await getDocs(appsQuery)
-      const fetchedApps: JobApplication[] = []
-      appsSnap.forEach((d) => {
-        fetchedApps.push({ id: d.id, ...d.data() } as JobApplication)
-      })
+      const { data: appRows, error: appsError } = await supabase
+        .from('applications')
+        .select('*')
+        .eq('company_name', recruiterProfile?.companyName || '')
+      if (appsError) throw appsError
+      const fetchedApps: JobApplication[] = (appRows || []).map(toJobApplication)
       setApplicants(fetchedApps)
     } catch (err) {
       console.error('Error fetching recruiter data:', err)
@@ -88,17 +83,27 @@ export const RecruiterDashboard: React.FC = () => {
         .filter(Boolean)
 
       // PRD Page 13: Job created goes to PENDING_APPROVAL for admin review
-      await addDoc(collection(db, 'jobs'), {
-        ...jobForm,
-        requiredSkills: skillsArray,
-        recruiterId: user.uid,
-        recruiterName: recruiterProfile?.fullName || 'Recruiter',
-        companyId: recruiterProfile?.id || user.uid,
-        companyName: recruiterProfile?.companyName || 'Verified Enterprise',
+      const { error: insertError } = await supabase.from('jobs').insert({
+        title: jobForm.title,
+        category: jobForm.category,
+        vacancies: jobForm.vacancies,
+        description: jobForm.description,
+        responsibilities: jobForm.responsibilities,
+        required_skills: skillsArray,
+        experience: jobForm.experience,
+        salary: jobForm.salary,
+        location: jobForm.location,
+        work_mode: jobForm.workMode,
+        job_type: jobForm.jobType,
+        recruiter_id: user.uid,
+        recruiter_name: recruiterProfile?.fullName || 'Recruiter',
+        recruiter_email: user.email,
+        company_id: recruiterProfile?.id || user.uid,
+        company_name: recruiterProfile?.companyName || 'Verified Enterprise',
         status: 'PENDING_APPROVAL',
-        applicantCount: 0,
-        postedAt: serverTimestamp()
+        applicant_count: 0,
       })
+      if (insertError) throw insertError
 
       setShowPostJobModal(false)
       setJobForm({
@@ -127,10 +132,8 @@ export const RecruiterDashboard: React.FC = () => {
   // Update Applicant Status
   const handleUpdateApplicantStatus = async (appId: string, newStatus: ApplicationStage) => {
     try {
-      await updateDoc(doc(db, 'applications', appId), {
-        status: newStatus,
-        updatedAt: serverTimestamp()
-      })
+      const { error: updateError } = await supabase.from('applications').update({ status: newStatus }).eq('id', appId)
+      if (updateError) throw updateError
 
       setApplicants((prev) =>
         prev.map((a) => (a.id === appId ? { ...a, status: newStatus } : a))

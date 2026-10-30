@@ -9,8 +9,7 @@ import {
   ArrowRight,
   Loader2
 } from 'lucide-react'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
-import { db } from '../../firebase'
+import { supabase } from '../../supabase'
 import { useAuth } from '../../context/AuthContext'
 import type { JobListing } from '../../types/user'
 
@@ -57,26 +56,23 @@ export const ApplyChecklistModal: React.FC<ApplyChecklistModalProps> = ({
     setSubmitting(true)
 
     try {
-      // Record application in Firestore matching PRD Page 9
-      await addDoc(collection(db, 'applications'), {
-        candidateId: user.uid,
-        candidateName: candidateProfile?.fullName || 'Verified Candidate',
-        candidateEmail: user.email || candidateProfile?.email || '',
-        candidateMobile: user.phoneNumber || candidateProfile?.mobileNumber || '',
-        candidateExperience: candidateProfile?.workExperience || '1 - 3 Years',
-        candidateLocation: candidateProfile?.currentLocation || 'Bengaluru',
-        candidateSkills: candidateProfile?.skills || job.requiredSkills || [],
-        jobId: job.id,
-        jobTitle: job.title,
-        companyName: job.companyName,
-        location: job.location,
-        salary: job.salary,
-        resumeUrl: candidateProfile?.resumeUrl || '',
-        resumeFileName: candidateProfile?.resumeFileName || 'Resume.pdf',
-        bgvStatus: candidateProfile?.bgvStatus || 'BASIC_VERIFIED',
+      // Record application in Supabase 'applications' table
+      const { error: insertError } = await supabase.from('applications').insert({
+        job_id: job.id,
+        job_title: job.title,
+        candidate_id: candidateProfile?.id || user.uid,
+        candidate_name: candidateProfile?.fullName || user.displayName || 'Verified Candidate',
+        candidate_email: user.email || candidateProfile?.email || '',
+        candidate_mobile: user.phoneNumber || candidateProfile?.mobileNumber || '',
+        candidate_experience: candidateProfile?.workExperience || '1 - 3 Years',
+        candidate_location: candidateProfile?.currentLocation || 'Bengaluru',
+        company_name: job.companyName,
+        resume_url: candidateProfile?.resumeUrl || null,
+        resume_file_name: candidateProfile?.resumeFileName || 'Resume.pdf',
+        bgv_status: candidateProfile?.bgvStatus || 'BASIC_VERIFIED',
         status: 'APPLIED',
-        appliedAt: serverTimestamp()
       })
+      if (insertError) throw insertError
 
       setAppliedSuccess(true)
     } catch (err: any) {

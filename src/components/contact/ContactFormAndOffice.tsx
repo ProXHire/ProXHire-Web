@@ -1,7 +1,5 @@
 import React, { useState } from 'react'
 import { MapPin, Headphones, Clock, ArrowRight, CheckCircle2, ExternalLink } from 'lucide-react'
-import { db } from '../../firebase'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { submitContactMessageToSupabase } from '../../supabase'
 
 export const ContactFormAndOffice: React.FC = () => {
@@ -28,42 +26,7 @@ export const ContactFormAndOffice: React.FC = () => {
         console.warn('Supabase contact submit notice:', sbErr.message)
       })
 
-      // 2. Write to Firestore candidates collection tagged with isContactMessage: true
-      await addDoc(collection(db, 'candidates'), {
-        isContactMessage: true,
-        name: formData.name.trim(),
-        fullName: formData.name.trim(),
-        email: formData.email.trim().toLowerCase(),
-        phone: formData.phone.trim(),
-        mobileNumber: formData.phone.trim(),
-        role: formData.role,
-        subject: formData.subject,
-        message: formData.message.trim(),
-        status: 'new',
-        registeredAt: serverTimestamp(),
-        createdAt: serverTimestamp(),
-      })
-
-      // 2. Dual backup in companies collection
-      try {
-        await addDoc(collection(db, 'companies'), {
-          isContactMessage: true,
-          name: formData.name.trim(),
-          fullName: formData.name.trim(),
-          email: formData.email.trim().toLowerCase(),
-          phone: formData.phone.trim(),
-          mobileNumber: formData.phone.trim(),
-          role: formData.role,
-          subject: formData.subject,
-          message: formData.message.trim(),
-          status: 'new',
-          registeredAt: serverTimestamp(),
-        })
-      } catch {
-        // secondary backup note
-      }
-
-      // 3. LocalStorage backup for offline/local development preview
+      // 2. LocalStorage backup for offline/local development preview
       try {
         const local = JSON.parse(localStorage.getItem('proxy_contact_messages') || '[]')
         local.unshift({

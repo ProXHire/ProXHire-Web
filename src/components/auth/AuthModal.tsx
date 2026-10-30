@@ -1,15 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   X,
   Mail,
   ShieldCheck,
-  CheckCircle2,
   ArrowRight,
   AlertCircle,
   Loader2
 } from 'lucide-react'
-import { RecaptchaVerifier, type ConfirmationResult } from 'firebase/auth'
-import { auth } from '../../firebase'
 import { useAuth } from '../../context/AuthContext'
 import type { UserRole } from '../../types/user'
 
@@ -26,18 +23,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   initialRole = 'candidate',
   onSuccess
 }) => {
-  const { loginWithEmail, registerWithEmail, sendPhoneOtp, verifyPhoneOtp } = useAuth()
+  const { loginWithEmail, registerWithEmail } = useAuth()
 
   const [role, setRole] = useState<UserRole>(initialRole)
-  const [authMethod] = useState<'phone' | 'email'>('email')
   const [isRegister, setIsRegister] = useState(false)
 
   // Form states
   const [phoneNumber, setPhoneNumber] = useState('')
-  const [otp, setOtp] = useState('')
-  const [otpSent, setOtpSent] = useState(false)
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null)
-  const [timer, setTimer] = useState(60)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -47,92 +39,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null)
-
   useEffect(() => {
     setRole(initialRole)
     setError(null)
   }, [initialRole, isOpen])
 
-  // Countdown timer for OTP
-  useEffect(() => {
-    let interval: any
-    if (otpSent && timer > 0) {
-      interval = setInterval(() => setTimer((t) => t - 1), 1000)
-    }
-    return () => clearInterval(interval)
-  }, [otpSent, timer])
-
-  // Setup reCAPTCHA
-  const setupRecaptcha = (): RecaptchaVerifier => {
-    if (recaptchaVerifierRef.current) {
-      recaptchaVerifierRef.current.clear()
-    }
-    const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-      size: 'invisible',
-      callback: () => {}
-    })
-    recaptchaVerifierRef.current = verifier
-    return verifier
-  }
-
   if (!isOpen) return null
 
-  // 1. Send OTP
-  const handleSendOtp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
-
-    const cleanedNumber = phoneNumber.trim().replace(/\D/g, '')
-    if (cleanedNumber.length !== 10) {
-      setError('Please enter a valid 10-digit Indian mobile number.')
-      return
-    }
-
-    const formattedPhone = `+91${cleanedNumber}`
-    setLoading(true)
-
-    try {
-      const verifier = setupRecaptcha()
-      const confirmation = await sendPhoneOtp(formattedPhone, verifier)
-      setConfirmationResult(confirmation)
-      setOtpSent(true)
-      setTimer(60)
-    } catch (err: any) {
-      console.error('Phone OTP error:', err)
-      setError(err.message || 'Failed to send OTP. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // 2. Verify OTP
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!confirmationResult || !otp || otp.length < 6) {
-      setError('Please enter the full 6-digit OTP code.')
-      return
-    }
-
-    setLoading(true)
-    setError(null)
-
-    try {
-      await verifyPhoneOtp(confirmationResult, otp, role, {
-        fullName: fullName || (role === 'candidate' ? 'Candidate' : 'Recruiter'),
-        companyName
-      })
-      onSuccess(role)
-      onClose()
-    } catch (err: any) {
-      console.error('OTP confirmation error:', err)
-      setError(err.message || 'Invalid or expired OTP code.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // 3. Email Submit
+  // Email Submit
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
@@ -184,9 +98,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }}
       onClick={onClose}
     >
-      {/* Hidden invisible reCAPTCHA container */}
-      <div id="recaptcha-container"></div>
-
       <div
         style={{
           backgroundColor: '#ffffff',
@@ -347,153 +258,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
-          {/* METHOD 1: PHONE OTP FLOW */}
-          {authMethod === 'phone' && (
-            <div>
-              {!otpSent ? (
-                <form onSubmit={handleSendOtp}>
-                  <div style={{ marginBottom: '16px' }}>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#27272a', marginBottom: '6px' }}>
-                      Mobile Number
-                    </label>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        border: '1.5px solid #e4e4e7',
-                        borderRadius: '8px',
-                        padding: '0 12px',
-                        backgroundColor: '#fafafa'
-                      }}
-                    >
-                      <span style={{ fontSize: '14px', fontWeight: 700, color: '#52525b', marginRight: '8px' }}>+91</span>
-                      <input
-                        type="tel"
-                        placeholder="Enter 10-digit mobile number"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        maxLength={10}
-                        required
-                        style={{
-                          width: '100%',
-                          padding: '11px 0',
-                          border: 'none',
-                          outline: 'none',
-                          fontSize: '14px',
-                          backgroundColor: 'transparent'
-                        }}
-                      />
-                    </div>
-                    <span style={{ fontSize: '11px', color: '#71717a', marginTop: '4px', display: 'block' }}>
-                      We'll send an official 6-digit SMS OTP to verify your account (Tier 1 BGV).
-                    </span>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      backgroundColor: '#09090b',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontWeight: 700,
-                      fontSize: '14px',
-                      cursor: loading ? 'not-allowed' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px'
-                    }}
-                  >
-                    {loading ? <Loader2 size={16} className="animate-spin" /> : 'Get Verification Code'}
-                    <ArrowRight size={16} />
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handleVerifyOtp}>
-                  <div style={{ marginBottom: '16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                      <label style={{ fontSize: '13px', fontWeight: 600, color: '#27272a' }}>
-                        Enter 6-digit OTP
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setOtpSent(false)}
-                        style={{ fontSize: '12px', color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
-                      >
-                        Change Number
-                      </button>
-                    </div>
-
-                    <input
-                      type="text"
-                      placeholder="• • • • • •"
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value)}
-                      maxLength={6}
-                      autoFocus
-                      required
-                      style={{
-                        width: '100%',
-                        padding: '12px',
-                        border: '1.5px solid #e4e4e7',
-                        borderRadius: '8px',
-                        fontSize: '18px',
-                        letterSpacing: '6px',
-                        textAlign: 'center',
-                        fontWeight: 700,
-                        outline: 'none',
-                        boxSizing: 'border-box'
-                      }}
-                    />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '12px', color: '#71717a' }}>
-                      <span>Sent to +91 {phoneNumber}</span>
-                      {timer > 0 ? (
-                        <span>Resend in {timer}s</span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={handleSendOtp}
-                          style={{ color: '#09090b', fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer' }}
-                        >
-                          Resend Code
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      backgroundColor: '#09090b',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontWeight: 700,
-                      fontSize: '14px',
-                      cursor: loading ? 'not-allowed' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px'
-                    }}
-                  >
-                    {loading ? <Loader2 size={16} className="animate-spin" /> : 'Verify & Enter Dashboard'}
-                    <CheckCircle2 size={16} />
-                  </button>
-                </form>
-              )}
-            </div>
-          )}
-
-          {/* METHOD 2: EMAIL & PASSWORD FLOW */}
-          {authMethod === 'email' && (
+          {/* EMAIL & PASSWORD FLOW */}
             <form onSubmit={handleEmailSubmit}>
               {isRegister && (
                 <div style={{ marginBottom: '14px' }}>
@@ -529,6 +294,32 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     placeholder="e.g. Acme Tech Bengaluru"
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: '1.5px solid #e4e4e7',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              )}
+
+              {isRegister && (
+                <div style={{ marginBottom: '14px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#27272a', marginBottom: '4px' }}>
+                    Mobile Number
+                  </label>
+                  <input
+                    type="tel"
+                    placeholder="10-digit mobile number"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
+                    maxLength={10}
+                    pattern="[6-9][0-9]{9}"
                     required
                     style={{
                       width: '100%',
@@ -637,7 +428,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </button>
               </div>
             </form>
-          )}
         </div>
 
         {/* Footer Guarantee */}

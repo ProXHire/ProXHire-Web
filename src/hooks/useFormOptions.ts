@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { db } from '../firebase'
-import { doc, onSnapshot } from 'firebase/firestore'
+import { supabase } from '../supabase'
 import { DEFAULT_FORM_OPTIONS, type FormOptions } from '../types/formOptions'
 
 const LOCAL_STORAGE_KEY = 'proxy_form_options'
@@ -31,40 +30,45 @@ export function useFormOptions() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    try {
-      const settingsRef = doc(db, 'settings', 'formOptions')
-      const unsub = onSnapshot(
-        settingsRef,
-        (snap) => {
-          if (snap.exists()) {
-            const data = snap.data()
-            const merged: FormOptions = {
-              highestEducation: Array.isArray(data.highestEducation) && data.highestEducation.length ? data.highestEducation : DEFAULT_FORM_OPTIONS.highestEducation,
-              preferredRole: Array.isArray(data.preferredRole) && data.preferredRole.length ? data.preferredRole : DEFAULT_FORM_OPTIONS.preferredRole,
-              workExperience: Array.isArray(data.workExperience) && data.workExperience.length ? data.workExperience : DEFAULT_FORM_OPTIONS.workExperience,
-              currentLocation: Array.isArray(data.currentLocation) && data.currentLocation.length ? data.currentLocation : DEFAULT_FORM_OPTIONS.currentLocation,
-              industry: Array.isArray(data.industry) && data.industry.length ? data.industry : DEFAULT_FORM_OPTIONS.industry,
-              companySize: Array.isArray(data.companySize) && data.companySize.length ? data.companySize : DEFAULT_FORM_OPTIONS.companySize,
-              popularSkills: Array.isArray(data.popularSkills) && data.popularSkills.length ? data.popularSkills : DEFAULT_FORM_OPTIONS.popularSkills,
-            }
-            setOptions(merged)
-            try {
-              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(merged))
-            } catch {
-              // Ignore localStorage write error
-            }
-          }
-          setLoading(false)
-        },
-        (error) => {
-          console.warn('Could not subscribe to formOptions Firestore doc (using defaults):', error)
-          setLoading(false)
-        }
-      )
-      return () => unsub()
-    } catch (err) {
-      console.warn('Error setting up formOptions listener:', err)
-      setLoading(false)
+    const apply = (data: any) => {
+      if (!data) return
+      const merged: FormOptions = {
+        highestEducation: Array.isArray(data.highestEducation) && data.highestEducation.length ? data.highestEducation : DEFAULT_FORM_OPTIONS.highestEducation,
+        preferredRole: Array.isArray(data.preferredRole) && data.preferredRole.length ? data.preferredRole : DEFAULT_FORM_OPTIONS.preferredRole,
+        workExperience: Array.isArray(data.workExperience) && data.workExperience.length ? data.workExperience : DEFAULT_FORM_OPTIONS.workExperience,
+        currentLocation: Array.isArray(data.currentLocation) && data.currentLocation.length ? data.currentLocation : DEFAULT_FORM_OPTIONS.currentLocation,
+        industry: Array.isArray(data.industry) && data.industry.length ? data.industry : DEFAULT_FORM_OPTIONS.industry,
+        companySize: Array.isArray(data.companySize) && data.companySize.length ? data.companySize : DEFAULT_FORM_OPTIONS.companySize,
+        popularSkills: Array.isArray(data.popularSkills) && data.popularSkills.length ? data.popularSkills : DEFAULT_FORM_OPTIONS.popularSkills,
+      }
+      setOptions(merged)
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(merged))
+      } catch {
+        // Ignore localStorage write error
+      }
+    }
+
+    supabase
+      .from('app_settings')
+      .select('data')
+      .eq('id', 'formOptions')
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) console.warn('Could not load formOptions from Supabase (using defaults):', error.message)
+        else apply(data?.data)
+        setLoading(false)
+      })
+
+    const channel = supabase
+      .channel('app_settings:formOptions:web')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings', filter: 'id=eq.formOptions' }, (payload: any) => {
+        apply(payload.new?.data)
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
     }
   }, [])
 

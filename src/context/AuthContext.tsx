@@ -1,41 +1,27 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
-import {
-  type User,
-  onAuthStateChanged,
-  signOut,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signInWithPhoneNumber,
-  type ConfirmationResult,
-  type ApplicationVerifier,
-  updateProfile
-} from 'firebase/auth'
-import {
-  doc,
-  getDoc,
-  setDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-  serverTimestamp
-} from 'firebase/firestore'
-import { auth, db } from '../firebase'
+import { supabase } from '../supabase'
 import type { UserRole, CandidateAccount, RecruiterAccount } from '../types/user'
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (
+  typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    ? 'http://localhost:5000/api'
+    : 'https://api.proxhire.in/api'
+)
+const TOKEN_KEY = 'proxhire_web_token'
+
+export interface AuthUser {
+  uid: string
+  email: string | null
+  displayName: string | null
+  phoneNumber: string | null
+}
+
 interface AuthContextType {
-  user: User | null
+  user: AuthUser | null
   userRole: UserRole | null
   candidateProfile: CandidateAccount | null
   recruiterProfile: RecruiterAccount | null
   loading: boolean
-  sendPhoneOtp: (phoneNumber: string, appVerifier: ApplicationVerifier) => Promise<ConfirmationResult>
-  verifyPhoneOtp: (
-    confirmationResult: ConfirmationResult,
-    otp: string,
-    role: UserRole,
-    extraData?: { fullName?: string; companyName?: string }
-  ) => Promise<void>
   loginWithEmail: (email: string, pass: string) => Promise<void>
   registerWithEmail: (
     email: string,
@@ -49,234 +35,168 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+const toCandidate = (r: any): CandidateAccount => ({
+  id: r.id,
+  uid: r.user_id || r.id,
+  fullName: r.full_name,
+  email: r.email,
+  mobileNumber: r.mobile_number || '',
+  currentLocation: r.city || 'Bengaluru',
+  highestEducation: r.highest_education || 'Graduate',
+  workExperience: r.work_experience || '',
+  preferredRole: r.preferred_role || '',
+  expectedSalary: r.expected_ctc || undefined,
+  skills: Array.isArray(r.skills) ? r.skills : [],
+  resumeFileName: r.resume_file_name || undefined,
+  resumeUrl: r.resume_url || undefined,
+  resumeFileType: r.resume_file_type || undefined,
+  bgvStatus: r.bgv_status || 'BASIC_VERIFIED',
+  registeredAt: r.registered_at,
+})
+
+const toRecruiter = (r: any): RecruiterAccount => ({
+  id: r.id,
+  uid: r.user_id || r.id,
+  fullName: r.full_name,
+  email: r.email,
+  mobileNumber: r.mobile_number || '',
+  companyName: r.company_name,
+  industry: r.industry || '',
+  companySize: r.company_size || '',
+  jobRole: r.job_role || 'HR Manager',
+  companyWebsite: r.company_website || undefined,
+  verificationStatus: r.verification_status || 'PENDING',
+  registeredAt: r.registered_at,
+})
+
+const apiPost = async (path: string, body: unknown) => {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const result = await res.json()
+  if (!res.ok || result.success === false) {
+    throw new Error(result.message || 'Request failed. Please try again.')
+  }
+  return result
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<AuthUser | null>(null)
   const [userRole, setUserRole] = useState<UserRole | null>(null)
   const [candidateProfile, setCandidateProfile] = useState<CandidateAccount | null>(null)
   const [recruiterProfile, setRecruiterProfile] = useState<RecruiterAccount | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
 
-  const fetchUserProfile = async (currentUser: User) => {
+  const fetchUserProfile = async (currentUser: AuthUser, role: UserRole) => {
+    if (!currentUser.email) return
     try {
-      // 1. Try reading user mapping from 'users' collection
-      const userDocRef = doc(db, 'users', currentUser.uid)
-      const userDocSnap = await getDoc(userDocRef)
-
-      let role: UserRole = 'candidate'
-      if (userDocSnap.exists()) {
-        const udata = userDocSnap.data()
-        role = (udata.role as UserRole) || 'candidate'
-        setUserRole(role)
-      }
-
-      // 2. Load role-specific profile
-      if (role === 'recruiter') {
-        const rQuery = query(collection(db, 'recruiters'), where('uid', '==', currentUser.uid))
-        const rSnap = await getDocs(rQuery)
-        if (!rSnap.empty) {
-          const docData = rSnap.docs[0].data()
-          setRecruiterProfile({ id: rSnap.docs[0].id, ...docData } as RecruiterAccount)
-        } else {
-          // Fallback search by email
-          if (currentUser.email) {
-            const rEmailQuery = query(collection(db, 'recruiters'), where('email', '==', currentUser.email))
-            const rEmailSnap = await getDocs(rEmailQuery)
-            if (!rEmailSnap.empty) {
-              const docData = rEmailSnap.docs[0].data()
-              setRecruiterProfile({ id: rEmailSnap.docs[0].id, ...docData } as RecruiterAccount)
-              setUserRole('recruiter')
-            }
-          }
-        }
-      } else {
-        // Candidate
-        const cQuery = query(collection(db, 'candidates'), where('uid', '==', currentUser.uid))
-        const cSnap = await getDocs(cQuery)
-        if (!cSnap.empty) {
-          const docData = cSnap.docs[0].data()
-          setCandidateProfile({ id: cSnap.docs[0].id, ...docData } as CandidateAccount)
-          setUserRole('candidate')
-        } else {
-          // Fallback search by email or phone
-          if (currentUser.email) {
-            const cEmailQuery = query(collection(db, 'candidates'), where('email', '==', currentUser.email))
-            const cEmailSnap = await getDocs(cEmailQuery)
-            if (!cEmailSnap.empty) {
-              const docData = cEmailSnap.docs[0].data()
-              setCandidateProfile({ id: cEmailSnap.docs[0].id, ...docData } as CandidateAccount)
-              setUserRole('candidate')
-            }
-          }
-        }
-      }
+      const table = role === 'recruiter' ? 'recruiters' : 'candidates'
+      const { data, error } = await supabase.from(table).select('*').eq('email', currentUser.email).maybeSingle()
+      if (error) throw error
+      if (role === 'recruiter') setRecruiterProfile(data ? toRecruiter(data) : null)
+      else setCandidateProfile(data ? toCandidate(data) : null)
     } catch (err) {
-      console.error('Error fetching user profile from Firestore:', err)
+      console.error('Error fetching user profile from Supabase:', err)
     }
   }
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser)
-      if (currentUser) {
-        await fetchUserProfile(currentUser)
-      } else {
-        setUserRole(null)
-        setCandidateProfile(null)
-        setRecruiterProfile(null)
-      }
-      setLoading(false)
-    })
+  const applySession = async (backendUser: any) => {
+    const role: UserRole = backendUser.role === 'EMPLOYER' ? 'recruiter' : backendUser.role === 'ADMIN' ? 'admin' : 'candidate'
+    const authUser: AuthUser = {
+      uid: backendUser.id,
+      email: backendUser.email || null,
+      displayName: backendUser.fullName || backendUser.candidateProfile?.fullName || backendUser.employerProfile?.recruiterName || null,
+      phoneNumber: backendUser.mobile || null,
+    }
+    setUser(authUser)
+    setUserRole(role)
+    await fetchUserProfile(authUser, role)
+  }
 
-    return () => unsubscribe()
+  // Restore session from stored backend JWT
+  useEffect(() => {
+    const token = localStorage.getItem(TOKEN_KEY)
+    if (!token) {
+      setLoading(false)
+      return
+    }
+    fetch(`${API_BASE_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => res.json())
+      .then(async result => {
+        if (result.success && result.user) await applySession(result.user)
+        else localStorage.removeItem(TOKEN_KEY)
+      })
+      .catch(() => localStorage.removeItem(TOKEN_KEY))
+      .finally(() => setLoading(false))
   }, [])
 
   const refreshProfiles = async () => {
-    if (user) {
-      await fetchUserProfile(user)
+    if (user && userRole) {
+      await fetchUserProfile(user, userRole)
     }
   }
 
-  // 1. Send SMS OTP
-  const sendPhoneOtp = async (phoneNumber: string, appVerifier: ApplicationVerifier): Promise<ConfirmationResult> => {
-    return await signInWithPhoneNumber(auth, phoneNumber, appVerifier)
-  }
-
-  // 2. Confirm Phone OTP
-  const verifyPhoneOtp = async (
-    confirmationResult: ConfirmationResult,
-    otp: string,
-    role: UserRole,
-    extraData?: { fullName?: string; companyName?: string }
-  ): Promise<void> => {
-    const userCredential = await confirmationResult.confirm(otp)
-    const firebaseUser = userCredential.user
-
-    // Register / update in 'users' collection
-    await setDoc(
-      doc(db, 'users', firebaseUser.uid),
-      {
-        uid: firebaseUser.uid,
-        mobileNumber: firebaseUser.phoneNumber || '',
-        role,
-        lastLogin: serverTimestamp()
-      },
-      { merge: true }
-    )
-
-    setUserRole(role)
-
-    // Ensure candidate or recruiter profile exists
-    if (role === 'candidate') {
-      const candRef = doc(db, 'candidates', firebaseUser.uid)
-      const candSnap = await getDoc(candRef)
-      if (!candSnap.exists()) {
-        const newCandidate: Partial<CandidateAccount> = {
-          uid: firebaseUser.uid,
-          fullName: extraData?.fullName || 'Candidate',
-          mobileNumber: firebaseUser.phoneNumber || '',
-          email: '',
-          currentLocation: 'Bengaluru',
-          highestEducation: 'Graduate',
-          workExperience: '1 - 3 Years',
-          preferredRole: 'Customer Support',
-          bgvStatus: 'BASIC_VERIFIED', // Phone verified activates Tier 1 BGV!
-          registeredAt: serverTimestamp()
-        }
-        await setDoc(candRef, newCandidate)
-        setCandidateProfile({ id: firebaseUser.uid, ...newCandidate } as CandidateAccount)
-      } else {
-        setCandidateProfile({ id: candSnap.id, ...candSnap.data() } as CandidateAccount)
-      }
-    } else {
-      // Recruiter
-      const recRef = doc(db, 'recruiters', firebaseUser.uid)
-      const recSnap = await getDoc(recRef)
-      if (!recSnap.exists()) {
-        const newRecruiter: Partial<RecruiterAccount> = {
-          uid: firebaseUser.uid,
-          fullName: extraData?.fullName || 'Recruiter',
-          companyName: extraData?.companyName || 'My Company',
-          mobileNumber: firebaseUser.phoneNumber || '',
-          email: '',
-          industry: 'IT & Services',
-          companySize: '11-50 employees',
-          jobRole: 'HR Manager',
-          verificationStatus: 'PENDING',
-          registeredAt: serverTimestamp()
-        }
-        await setDoc(recRef, newRecruiter)
-        setRecruiterProfile({ id: firebaseUser.uid, ...newRecruiter } as RecruiterAccount)
-      } else {
-        setRecruiterProfile({ id: recSnap.id, ...recSnap.data() } as RecruiterAccount)
-      }
-    }
-  }
-
-  // 3. Email Login
+  // Email Login
   const loginWithEmail = async (email: string, pass: string): Promise<void> => {
-    const cred = await signInWithEmailAndPassword(auth, email, pass)
-    await fetchUserProfile(cred.user)
+    const result = await apiPost('/auth/login', { identifier: email.trim(), password: pass })
+    localStorage.setItem(TOKEN_KEY, result.token)
+    await applySession(result.user)
   }
 
-  // 4. Email Registration
+  // Email Registration: create the account on the backend, mirror the profile to Supabase, then sign in
   const registerWithEmail = async (
     email: string,
     pass: string,
     role: UserRole,
     extraData: { fullName: string; mobileNumber: string; companyName?: string; location?: string }
   ): Promise<void> => {
-    const cred = await createUserWithEmailAndPassword(auth, email, pass)
-    const firebaseUser = cred.user
+    const cleanEmail = email.toLowerCase().trim()
+    const mobile = extraData.mobileNumber.replace(/\D/g, '').slice(-10)
 
-    await updateProfile(firebaseUser, { displayName: extraData.fullName })
-
-    // Save in 'users' collection
-    await setDoc(doc(db, 'users', firebaseUser.uid), {
-      uid: firebaseUser.uid,
-      email: firebaseUser.email,
-      mobileNumber: extraData.mobileNumber,
-      role,
-      createdAt: serverTimestamp()
-    })
-
-    setUserRole(role)
-
-    if (role === 'candidate') {
-      const candidateData: Partial<CandidateAccount> = {
-        uid: firebaseUser.uid,
-        fullName: extraData.fullName,
-        email,
-        mobileNumber: extraData.mobileNumber,
-        currentLocation: extraData.location || 'Bengaluru',
-        highestEducation: 'Graduate',
-        workExperience: '1 - 3 Years',
-        preferredRole: 'Customer Support',
-        bgvStatus: 'BASIC_VERIFIED', // Email registered
-        registeredAt: serverTimestamp()
-      }
-      await setDoc(doc(db, 'candidates', firebaseUser.uid), candidateData)
-      setCandidateProfile({ id: firebaseUser.uid, ...candidateData } as CandidateAccount)
+    if (role === 'recruiter') {
+      const companyName = extraData.companyName || 'Hiring Enterprise'
+      await apiPost('/auth/register/employer', {
+        companyName,
+        recruiterName: extraData.fullName,
+        officialEmail: cleanEmail,
+        mobile,
+        password: pass,
+      })
+      await supabase.from('recruiters').upsert({
+        full_name: extraData.fullName,
+        email: cleanEmail,
+        mobile_number: mobile,
+        normalized_mobile: mobile,
+        company_name: companyName,
+        job_role: 'Talent Acquisition',
+        verification_status: 'PENDING',
+      }, { onConflict: 'email' })
     } else {
-      const recruiterData: Partial<RecruiterAccount> = {
-        uid: firebaseUser.uid,
+      await apiPost('/auth/register/candidate', {
         fullName: extraData.fullName,
-        email,
-        mobileNumber: extraData.mobileNumber,
-        companyName: extraData.companyName || 'Hiring Enterprise',
-        industry: 'IT & Services',
-        companySize: '11-50 employees',
-        jobRole: 'Talent Acquisition',
-        verificationStatus: 'PENDING',
-        registeredAt: serverTimestamp()
-      }
-      await setDoc(doc(db, 'recruiters', firebaseUser.uid), recruiterData)
-      setRecruiterProfile({ id: firebaseUser.uid, ...recruiterData } as RecruiterAccount)
+        email: cleanEmail,
+        mobile,
+        password: pass,
+        currentLocation: extraData.location || 'Bengaluru',
+      })
+      await supabase.from('candidates').upsert({
+        full_name: extraData.fullName,
+        email: cleanEmail,
+        mobile_number: mobile,
+        normalized_mobile: mobile,
+        city: extraData.location || 'Bengaluru',
+        bgv_status: 'BASIC_VERIFIED',
+      }, { onConflict: 'email' })
     }
+
+    await loginWithEmail(cleanEmail, pass)
   }
 
-  // 5. Logout
+  // Logout
   const logout = async (): Promise<void> => {
-    await signOut(auth)
+    localStorage.removeItem(TOKEN_KEY)
     setUser(null)
     setUserRole(null)
     setCandidateProfile(null)
@@ -291,8 +211,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         candidateProfile,
         recruiterProfile,
         loading,
-        sendPhoneOtp,
-        verifyPhoneOtp,
         loginWithEmail,
         registerWithEmail,
         logout,

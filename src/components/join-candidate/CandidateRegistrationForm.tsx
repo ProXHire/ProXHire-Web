@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Briefcase, TrendingUp, UserCheck, ShieldCheck, CheckCircle2, Upload, FileText, X, ArrowRight, Sparkles, AlertTriangle, AlertCircle, Phone, Mail } from 'lucide-react'
-import { db } from '../../firebase'
-import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore'
+import { supabase } from '../../supabase'
 import { useFormOptions } from '../../hooks/useFormOptions'
 
 interface DuplicateInfo {
@@ -35,7 +34,7 @@ export const CandidateRegistrationForm: React.FC = () => {
   const [duplicateInfo, setDuplicateInfo] = useState<DuplicateInfo | null>(null)
   const [showDuplicateModal, setShowDuplicateModal] = useState(false)
 
-  // Ensure recent submissions on this device are tracked even before Firestore rules update
+  // Ensure recent submissions on this device are tracked even before the database reflects them
   useEffect(() => {
     try {
       const existing = localStorage.getItem('proxy_registered_candidates')
@@ -125,19 +124,6 @@ export const CandidateRegistrationForm: React.FC = () => {
     const digits = rawMobile.replace(/\D/g, '')
     const last10 = digits.length >= 10 ? digits.slice(-10) : digits
 
-    const mobileVariants = Array.from(
-      new Set([
-        rawMobile,
-        digits,
-        last10,
-        `+91 ${last10}`,
-        `+91${last10}`,
-        `+91-${last10}`,
-        `0${last10}`,
-        `+91 ${rawMobile}`
-      ])
-    ).filter(Boolean).slice(0, 10)
-
     let emailDuplicate = false
     let mobileDuplicate = false
 
@@ -160,35 +146,18 @@ export const CandidateRegistrationForm: React.FC = () => {
       // LocalStorage read error
     }
 
-    // 2. Check live Firestore candidates collection
+    // 2. Check live Supabase candidates table
     try {
-      const queries: Promise<any>[] = []
       if (cleanEmail) {
-        queries.push(getDocs(query(collection(db, 'candidates'), where('email', '==', cleanEmail))))
-      }
-      if (mobileVariants.length > 0) {
-        queries.push(getDocs(query(collection(db, 'candidates'), where('mobileNumber', 'in', mobileVariants))))
+        const { count } = await supabase.from('candidates').select('id', { count: 'exact', head: true }).eq('email', cleanEmail)
+        if (count) emailDuplicate = true
       }
       if (last10) {
-        queries.push(getDocs(query(collection(db, 'candidates'), where('normalizedMobile', '==', last10))))
-      }
-
-      const results = await Promise.allSettled(queries)
-
-      // Email match (index 0)
-      if (results[0] && results[0].status === 'fulfilled' && results[0].value && !results[0].value.empty) {
-        emailDuplicate = true
-      }
-      // Mobile variants match (index 1)
-      if (results[1] && results[1].status === 'fulfilled' && results[1].value && !results[1].value.empty) {
-        mobileDuplicate = true
-      }
-      // Normalized mobile match (index 2)
-      if (results[2] && results[2].status === 'fulfilled' && results[2].value && !results[2].value.empty) {
-        mobileDuplicate = true
+        const { count } = await supabase.from('candidates').select('id', { count: 'exact', head: true }).eq('normalized_mobile', last10)
+        if (count) mobileDuplicate = true
       }
     } catch (err: any) {
-      console.warn('Firestore duplicate check query note:', err?.message || err)
+      console.warn('Supabase duplicate check query note:', err?.message || err)
     }
 
     // If either email or mobile number already exists, abort submission and trigger popup
@@ -227,44 +196,40 @@ export const CandidateRegistrationForm: React.FC = () => {
         }
       }
 
-      // Check if resume fits in a single document (< 750 KB Base64) or needs chunking for larger files
-      const isSingleDoc = resumeDataUrl ? resumeDataUrl.length < 750 * 1024 : true
-      const CHUNK_SIZE = 500 * 1024
-      const totalChunks = (resumeDataUrl && !isSingleDoc) ? Math.ceil(resumeDataUrl.length / CHUNK_SIZE) : 1
-
-      // If file is larger, store chunks in Firestore so any resume up to 5MB is fully preserved
-      if (resumeDataUrl && !isSingleDoc) {
-        for (let i = 0; i < totalChunks; i++) {
-          const chunkStr = resumeDataUrl.substring(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE)
-          await addDoc(collection(db, 'candidates'), {
-            isResumeChunk:   true,
-            candidateEmail:  cleanEmail,
-            chunkIndex:      i,
-            totalChunks:     totalChunks,
-            data:            chunkStr,
-            createdAt:       serverTimestamp(),
-          })
+      // Upload resume to Supabase Storage bucket 'resumes'
+      let resumeUrl: string | null = null
+      let resumeStoragePath: string | null = null
+      if (resumeFile) {
+        const path = `candidates/${cleanEmail}/${Date.now()}_${resumeFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+        const { data: uploaded, error: uploadError } = await supabase.storage
+          .from('resumes')
+          .upload(path, resumeFile, { contentType: resumeFile.type || 'application/pdf', upsert: true })
+        if (uploadError) {
+          console.warn('Supabase resume upload note:', uploadError.message)
+        } else {
+          resumeStoragePath = uploaded.path
+          resumeUrl = supabase.storage.from('resumes').getPublicUrl(uploaded.path).data.publicUrl
         }
       }
 
-      await addDoc(collection(db, 'candidates'), {
-        fullName:         formData.fullName.trim(),
-        email:            cleanEmail,
-        mobileNumber:     formData.mobileNumber.trim(),
-        normalizedMobile: last10,
-        currentLocation:  formData.currentLocation,
-        highestEducation: formData.highestEducation,
-        workExperience:   formData.workExperience,
-        preferredRole:    formData.preferredRole,
-        hasResume:        !!resumeFile,
-        resumeFileName:   resumeFile?.name ?? null,
-        resumeFileType:   resumeFile?.type ?? 'application/pdf',
-        resumeFileSize:   resumeFile?.size ?? 0,
-        resumeChunkCount: totalChunks,
-        resumeDataUrl:    isSingleDoc ? resumeDataUrl : null,
-        status:           'new',
-        registeredAt:     serverTimestamp(),
+      const { error: insertError } = await supabase.from('candidates').insert({
+        full_name:           formData.fullName.trim(),
+        email:               cleanEmail,
+        mobile_number:       formData.mobileNumber.trim(),
+        normalized_mobile:   last10,
+        city:                formData.currentLocation,
+        highest_education:   formData.highestEducation,
+        work_experience:     formData.workExperience,
+        preferred_role:      formData.preferredRole,
+        has_resume:          !!resumeFile,
+        resume_file_name:    resumeFile?.name ?? null,
+        resume_file_type:    resumeFile?.type ?? 'application/pdf',
+        resume_file_size:    resumeFile?.size ?? 0,
+        resume_url:          resumeUrl,
+        resume_storage_path: resumeStoragePath,
+        status:              'new',
       })
+      if (insertError) throw insertError
 
       // Add to local cache for instant future duplicate detection
       try {
@@ -286,7 +251,7 @@ export const CandidateRegistrationForm: React.FC = () => {
       setDuplicateInfo(null)
       setShowDuplicateModal(false)
     } catch (err) {
-      console.error('Firestore write failed:', err)
+      console.error('Supabase write failed:', err)
       setSubmitError('Something went wrong. Please check your connection and try again.')
     } finally {
       setIsSubmitting(false)

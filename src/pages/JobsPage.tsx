@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { collection, query, where, getDocs } from 'firebase/firestore'
-import { db } from '../firebase'
+import { supabase, toJobListing } from '../supabase'
 import { INITIAL_BENGALURU_JOBS } from '../constants/bengaluruJobs'
 import { JobCard } from '../components/jobs/JobCard'
 import { JobFilters, type FilterState } from '../components/jobs/JobFilters'
@@ -53,26 +52,23 @@ export const JobsPage: React.FC<JobsPageProps> = ({
     }
   }, [initialCategory])
 
-  // Fetch published jobs from Firestore and merge with initial seed jobs
+  // Fetch published jobs from Supabase and merge with initial seed jobs
   useEffect(() => {
     const fetchLiveJobs = async () => {
       setLoading(true)
       try {
-        const q = query(collection(db, 'jobs'), where('status', '==', 'PUBLISHED'))
-        const snap = await getDocs(q)
-        const firestoreJobs: JobListing[] = []
-        snap.forEach((doc) => {
-          firestoreJobs.push({ id: doc.id, ...doc.data() } as JobListing)
-        })
+        const { data, error } = await supabase.from('jobs').select('*').eq('status', 'PUBLISHED')
+        if (error) throw error
+        const liveJobs: JobListing[] = (data || []).map(toJobListing)
 
-        if (firestoreJobs.length > 0) {
-          // Combine firestore jobs + initial seed jobs, avoiding duplicates by id
-          const existingIds = new Set(firestoreJobs.map((j) => j.id))
+        if (liveJobs.length > 0) {
+          // Combine live jobs + initial seed jobs, avoiding duplicates by id
+          const existingIds = new Set(liveJobs.map((j) => j.id))
           const nonDuplicateSeed = INITIAL_BENGALURU_JOBS.filter((j) => !existingIds.has(j.id))
-          setJobs([...firestoreJobs, ...nonDuplicateSeed])
+          setJobs([...liveJobs, ...nonDuplicateSeed])
         }
       } catch (err) {
-        console.error('Error fetching jobs from Firestore:', err)
+        console.error('Error fetching jobs from Supabase:', err)
       } finally {
         setLoading(false)
       }

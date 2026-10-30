@@ -15,8 +15,7 @@ import {
   ArrowRight,
   CheckCircle2
 } from 'lucide-react'
-import { db } from '../../firebase'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { supabase } from '../../supabase'
 import { useFormOptions } from '../../hooks/useFormOptions'
 
 interface RecruiterRegisterSectionProps {
@@ -61,35 +60,44 @@ export const RecruiterRegisterSection: React.FC<RecruiterRegisterSectionProps> =
     setIsSubmitting(true)
     setSubmitError(null)
     try {
-      const recruiterData = {
-        fullName:         formData.fullName.trim(),
-        email:            formData.email.trim().toLowerCase(),
-        mobileNumber:     `${formData.countryCode} ${formData.mobileNumber.trim()}`,
-        companyName:      formData.companyName.trim(),
-        industry:         formData.industry,
-        companySize:      formData.companySize,
-        jobRole:          formData.jobRole.trim(),
-        companyWebsite:   formData.companyWebsite.trim() || null,
-        hearAboutUs:      formData.hearAboutUs || null,
-        status:           'pending',
-        registeredAt:     serverTimestamp(),
-      }
-      // Write to recruiters collection
-      await addDoc(collection(db, 'recruiters'), recruiterData)
-      // Also write to companies collection so admin Companies view is populated
-      await addDoc(collection(db, 'companies'), {
-        companyName:    formData.companyName.trim(),
-        industry:       formData.industry,
-        companySize:    formData.companySize,
-        companyWebsite: formData.companyWebsite.trim() || null,
-        recruiterName:  formData.fullName.trim(),
-        recruiterEmail: formData.email.trim().toLowerCase(),
-        status:         'pending',
-        registeredAt:   serverTimestamp(),
-      })
+      const cleanEmail = formData.email.trim().toLowerCase()
+      const companyName = formData.companyName.trim()
+      const companyId = companyName.toLowerCase().replace(/[^a-z0-9]/g, '_')
+      const mobile = formData.mobileNumber.trim()
+
+      // Write to recruiters table
+      const { error: recruiterError } = await supabase.from('recruiters').upsert({
+        full_name:         formData.fullName.trim(),
+        email:             cleanEmail,
+        country_code:      formData.countryCode,
+        mobile_number:     mobile,
+        normalized_mobile: mobile.replace(/\D/g, '').slice(-10),
+        company_id:        companyId,
+        company_name:      companyName,
+        industry:          formData.industry,
+        company_size:      formData.companySize,
+        job_role:          formData.jobRole.trim(),
+        designation:       formData.jobRole.trim(),
+        company_website:   formData.companyWebsite.trim() || null,
+        status:            'pending',
+      }, { onConflict: 'email' })
+      if (recruiterError) throw recruiterError
+
+      // Also write to companies table so admin Companies view is populated
+      const { error: companyError } = await supabase.from('companies').upsert({
+        id:              companyId,
+        company_name:    companyName,
+        industry:        formData.industry,
+        company_size:    formData.companySize,
+        company_website: formData.companyWebsite.trim() || null,
+        recruiter_name:  formData.fullName.trim(),
+        recruiter_email: cleanEmail,
+        status:          'pending',
+      }, { onConflict: 'id' })
+      if (companyError) throw companyError
       setIsSubmitted(true)
     } catch (err) {
-      console.error('Firestore write failed:', err)
+      console.error('Supabase write failed:', err)
       setSubmitError('Something went wrong. Please check your connection and try again.')
     } finally {
       setIsSubmitting(false)
